@@ -5,12 +5,25 @@
         <field name="inherit_id" ref="purchase.purchase_order_form" />
         <field name="arch" type="xml">
             <xpath expr="//field[@name='product_qty']" position="before">
-                <field name="product_qty_package" />
-                <field name="package_qty" />
-                <field name="indicative_package" invisible="1" />
+                <xpath
+                    expr="//field[@name='order_line']/list/field[@name='product_packaging_qty']"
+                    position="move"
+                />
+                <field
+                    name="package_qty"
+                    invisible="not product_id or not product_packaging_id"
+                    groups="product.group_stock_packaging"
+                    optional="hide"
+                />
+                <field name="indicative_package" column_invisible="1" />
             </xpath>
             <xpath expr="//field[@name='price_unit']" position="after">
-                <field name="price_policy" />
+                <field
+                    name="price_policy"
+                    invisible="not product_id or not product_packaging_id"
+                    groups="product.group_stock_packaging"
+                    optional="show"
+                />
             </xpath>
         </field>
     </record>

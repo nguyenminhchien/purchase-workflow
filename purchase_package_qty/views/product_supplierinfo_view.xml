@@ -25,24 +25,33 @@
         <field name="inherit_id" ref="product.product_supplierinfo_form_view" />
         <field name="arch" type="xml">
             <xpath expr="//label[@for='price']" position="before">
-                <field name="package_qty" required="1" />
-                <field name="indicative_package" />
-                <label for="base_price" />
+                <field
+                    name="product_packaging_id"
+                    groups="product.group_stock_packaging"
+                    required="price_policy == 'package'"
+                />
+                <field name="package_qty" groups="product.group_stock_packaging" />
+                <field
+                    name="indicative_package"
+                    groups="product.group_stock_packaging"
+                />
+                <label for="base_price" string="Price" />
                 <div>
                     <field name="base_price" required="1" class="oe_inline" />
-                    <field name="price_policy" class="oe_inline" />
+                    <field
+                        name="price_policy"
+                        required="1"
+                        class="oe_inline"
+                        groups="product.group_stock_packaging"
+                    />
                 </div>
             </xpath>
             <xpath expr="//field[@name='price']" position="attributes">
                 <attribute name="string">Price per unit</attribute>
-                <attribute name="attrs">
-                    {'invisible':[('price_policy', '!=', 'package')]}
-                </attribute>
+                <attribute name="invisible">price_policy != 'package'</attribute>
             </xpath>
             <xpath expr="//label[@for='price']" position="attributes">
-                <attribute name="attrs">
-                    {'invisible':[('price_policy', '!=', 'package')]}
-                </attribute>
+                <attribute name="invisible">price_policy != 'package'</attribute>
             </xpath>
         </field>
     </record>
@@ -53,14 +62,25 @@
         <field name="inherit_id" ref="product.product_supplierinfo_tree_view" />
         <field name="arch" type="xml">
             <field name="min_qty" position="after">
-                <field name="package_qty" />
-                <field name="indicative_package" />
+                <!-- on product template form -->
+                <field
+                    name="product_packaging_id"
+                    groups="product.group_stock_packaging"
+                    required="price_policy == 'package'"
+                />
+                <field name="package_qty" groups="product.group_stock_packaging" />
+                <field
+                    name="indicative_package"
+                    groups="product.group_stock_packaging"
+                />
             </field>
-            <xpath expr="//field[@name='price']" position="replace" />
-            <xpath expr="//tree" position="inside">
+            <xpath expr="//field[@name='price']" position="attributes">
+                <attribute name="column_invisible">1</attribute>
+            </xpath>
+            <xpath expr="//list" position="inside">
                 <field name="price" />
-                <field name="base_price" />
-                <field name="price_policy" />
+                <field name="base_price" groups="product.group_stock_packaging" />
+                <field name="price_policy" groups="product.group_stock_packaging" />
             </xpath>
         </field>
     </record>

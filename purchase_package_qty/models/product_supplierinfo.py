@@ -23,86 +23,93 @@
 #
 ##############################################################################
 
-from odoo import _, api, fields, models
-
-from odoo.addons import decimal_precision as dp
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 
 class ProductSupplierinfo(models.Model):
     _inherit = "product.supplierinfo"
 
     # Columns section
+    product_variant_ids = fields.Many2many(
+        comodel_name="product.product",
+        compute="_compute_product_variant_ids",
+        string="Product Variants",
+    )
+    product_packaging_id = fields.Many2one(
+        "product.packaging",
+        string="Packaging",
+        check_company=True,
+        domain="[('purchase', '=', True), ('product_id', 'in', product_variant_ids)]",
+    )
+
     package_qty = fields.Float(
-        "Package Qty",
-        digits=dp.get_precision("Product UoM"),
-        help="""The quantity of products in the supplier package."""
-        """ You will always have to buy a multiple of this quantity.""",
-        default=1,
+        related="product_packaging_id.qty",
     )
     indicative_package = fields.Boolean(
-        "Indicative Package",
         help="""If checked, the system will not force you to purchase"""
         """ a strict multiple of package quantity""",
         default=False,
     )
     price_policy = fields.Selection(
         [("uom", "per UOM"), ("package", "per Package")],
-        "Price Policy",
         default="uom",
-        required=True,
     )
     base_price = fields.Float(
-        "Price",
-        required=False,
-        default=0.00,
-        digits=dp.get_precision("Product Price"),
+        compute="_compute_base_price",
+        store=True,
+        readonly=False,
+        digits="Product Price",
         help="The price to purchase a product",
     )
     price = fields.Float(
-        "Price per Unit",
         compute="_compute_price",
-        required=False,
         store=True,
-        readonly=True,
+        readonly=False,
     )
 
-    @api.depends("base_price", "price_policy", "package_qty")
-    @api.multi
+    @api.depends("product_id", "product_tmpl_id")
+    def _compute_product_variant_ids(self):
+        for psi in self:
+            psi.product_variant_ids = (
+                psi.product_id or psi.product_tmpl_id.product_variant_ids
+            )
+
+    @api.depends("price", "price_policy", "product_packaging_id")
+    def _compute_base_price(self):
+        for psi in self:
+            if psi.price_policy == "package" and psi.product_packaging_id:
+                psi.base_price = psi.price * psi.package_qty
+            else:
+                psi.base_price = psi.price
+
+    @api.depends("base_price", "price_policy", "product_packaging_id")
     def _compute_price(self):
         for psi in self:
-            if psi.price_policy == "package":
-                if psi.package_qty == 0:
-                    psi.package_qty = 1
+            if (
+                psi.price_policy == "package"
+                and psi.product_packaging_id
+                and psi.package_qty
+            ):
                 psi.price = psi.base_price / psi.package_qty
             else:
                 psi.price = psi.base_price
 
-    @api.model
-    def create(self, vals):
-        if not vals.get("base_price", False):
-            if vals.get("price", False):
-                vals["base_price"] = vals["price"]
-                del vals["price"]
-            else:
-                vals["base_price"] = 0
-        res = super().create(vals)
-        return res
-
-    @api.multi
-    def write(self, vals):
-        if not vals.get("base_price", False):
-            if vals.get("price", False):
-                vals["base_price"] = vals["price"]
-                del vals["price"]
-        return super().write(vals)
-
     # Constraints section
-    @api.multi
-    @api.constrains("package_qty")
-    def _check_package_qty(self):
-        for psi in self:
-            if psi.package_qty == 0:
-                raise ValueError(_("The package quantity cannot be 0."))
+    @api.constrains("product_packaging_id")
+    def _check_packaging(self):
+        psis = self.filtered("product_packaging_id")
+        for psi in psis:
+            product = psi.product_packaging_id.product_id
+            if (
+                psi.product_id and product != psi.product_id
+            ) or product.product_tmpl_id != psi.product_tmpl_id:
+                raise ValidationError(
+                    self.env._(
+                        "The packaging %s is not valid for the product or variant.",
+                        psi.product_packaging_id.display_name,
+                    )
+                )
 
     # Init section
     @api.model

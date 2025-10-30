@@ -26,60 +26,63 @@
 from odoo import api, fields, models
 
 
-class StockMove(models.Model):
-    _inherit = "stock.move"
+class AccountMoveLine(models.Model):
+    _inherit = "account.move.line"
+
+    product_packaging_id = fields.Many2one(
+        "product.packaging",
+        string="Packaging",
+        domain="[('product_id', '=', product_id)]",
+        check_company=True,
+    )
 
     package_qty = fields.Float(
         related="product_packaging_id.qty",
-        help="""The quantity of products in a package.""",
+        help="The quantity of products in a package.",
     )
-    product_packaging_qty = fields.Float(inverse="_inverse_product_packaging_qty")
     product_packaging_quantity = fields.Float(
-        inverse="_inverse_product_packaging_quantity"
+        "Packaging Quantity",
+        compute="_compute_product_packaging_quantity",
+        inverse="_inverse_product_packaging_quantity",
+        help="The number of packages.",
+    )
+    price_policy = fields.Selection(
+        [("uom", "per UOM"), ("package", "per Package")],
+        default="uom",
     )
 
-    def _inverse_product_packaging_qty(self):
-        """Inverse method to set product_uom_qty from product_packaging_qty."""
-        self._set_product_packaging_qty()
+    @api.depends("product_packaging_id", "product_uom_id", "quantity")
+    def _compute_product_packaging_quantity(self):
+        self.product_packaging_quantity = False
+        for line in self:
+            if not line.product_packaging_id:
+                continue
+            if line.price_policy == "package":
+                line.product_packaging_quantity = line.quantity
+            else:
+                line.product_packaging_quantity = (
+                    line.product_packaging_id._compute_qty(
+                        line.quantity, line.product_uom_id
+                    )
+                )
 
     def _inverse_product_packaging_quantity(self):
         """Inverse method to set quantity from product_packaging_quantity."""
         self._set_product_packaging_quantity()
 
-    @api.onchange("product_packaging_qty")
-    def onchange_product_packaging_qty(self):
-        """Onchange method to set product_uom_qty from product_packaging_qty from UI."""
-        self._set_product_packaging_qty()
-
-    def _set_product_packaging_qty(self):
-        for move in self:
-            if not move.product_packaging_id or not move.is_initial_demand_editable:
-                continue
-            move.product_uom_qty = move.product_packaging_id._compute_contained_qty(
-                move.product_packaging_qty,
-                qty_uom=move.product_uom,
-            )
-
-    @api.onchange("product_packaging_quantity")
+    @api.onchange("product_packaging_quantity", "price_policy")
     def onchange_product_packaging_quantity(self):
         """Onchange method to set quantity from product_packaging_quantity from UI."""
         self._set_product_packaging_quantity()
 
     def _set_product_packaging_quantity(self):
-        for move in self:
-            if not move.product_packaging_id or not move.is_quantity_done_editable:
+        for line in self:
+            if not line.product_packaging_id or line.parent_state != "draft":
                 continue
-            move.quantity = move.product_packaging_id._compute_contained_qty(
-                move.product_packaging_quantity,
-                qty_uom=move.product_uom,
-            )
-
-    @api.onchange("product_id", "product_qty", "product_uom")
-    def _onchange_suggest_packaging(self):
-        """override to keep the product_packaging_id when it's from purchase line."""
-        if (
-            self.product_packaging_id
-            and self.product_packaging_id == self.purchase_line_id.product_packaging_id
-        ):
-            return None
-        return super()._onchange_suggest_packaging()
+            if line.price_policy == "package":
+                line.quantity = line.product_packaging_quantity
+            else:
+                line.quantity = line.product_packaging_id._compute_contained_qty(
+                    line.product_packaging_quantity,
+                    qty_uom=line.product_uom_id,
+                )
