@@ -75,7 +75,7 @@ class ProductSupplierinfo(models.Model):
                 psi.product_id or psi.product_tmpl_id.product_variant_ids
             )
 
-    @api.depends("price", "price_policy", "product_packaging_id")
+    @api.depends("price", "price_policy", "product_packaging_id", "package_qty")
     def _compute_base_price(self):
         for psi in self:
             if psi.price_policy == "package" and psi.product_packaging_id:
@@ -83,7 +83,7 @@ class ProductSupplierinfo(models.Model):
             else:
                 psi.base_price = psi.price
 
-    @api.depends("base_price", "price_policy", "product_packaging_id")
+    @api.depends("base_price", "price_policy", "product_packaging_id", "package_qty")
     def _compute_price(self):
         for psi in self:
             if (

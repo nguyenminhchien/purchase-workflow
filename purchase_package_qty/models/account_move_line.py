@@ -51,7 +51,7 @@ class AccountMoveLine(models.Model):
         default="uom",
     )
 
-    @api.depends("product_packaging_id", "product_uom_id", "quantity")
+    @api.depends("product_packaging_id", "product_uom_id", "quantity", "price_policy")
     def _compute_product_packaging_quantity(self):
         self.product_packaging_quantity = False
         for line in self:

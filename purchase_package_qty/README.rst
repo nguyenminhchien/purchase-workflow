@@ -31,7 +31,7 @@ Purchase - Package Quantity
 This module allows to input a Package quantity in the supplier info
 form, and propagate it to purchase order lines:
 
--  The package quantity appears in purchase orders lines.
+- The package quantity appears in purchase orders lines.
 
 **Table of contents**
 
@@ -41,10 +41,10 @@ form, and propagate it to purchase order lines:
 Configuration
 =============
 
--  Go to Purchase → Products → Products.
--  Open a product (e.g., TERRA SANA 125G).
--  Click on the tab ``Inventory``
--  Add the packaging:
+- Go to Purchase → Products → Products.
+- Open a product (e.g., TERRA SANA 125G).
+- Click on the tab ``Inventory``
+- Add the packaging:
 
 |1_product_packaging|
 
@@ -99,12 +99,12 @@ Authors
 Contributors
 ------------
 
--  GRAP
--  Druidoo
--  [Trobz] (https://trobz.com/):
+- GRAP
+- Druidoo
+- [Trobz] (https://trobz.com/):
 
-   -  Phan Hong Phuc <phucph@trobz.com>
-   -  Nguyễn Minh Chiến <chien@trobz.com>
+  - Phan Hong Phuc <phucph@trobz.com>
+  - Nguyễn Minh Chiến <chien@trobz.com>
 
 Maintainers
 -----------

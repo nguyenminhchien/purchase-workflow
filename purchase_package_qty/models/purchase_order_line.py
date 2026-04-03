@@ -51,11 +51,11 @@ class PurchaseOrderLine(models.Model):
     )
 
     # adding price_policy to depends
-    @api.depends("price_policy")
+    @api.depends("price_policy", "product_packaging_qty")
     def _compute_amount(self):
         return super()._compute_amount()
 
-    @api.depends("package_qty", "price_unit")
+    @api.depends("package_qty", "price_unit", "price_policy")
     def _compute_product_prices(self):
         for line in self:
             if line.price_policy == "package":
@@ -210,7 +210,7 @@ class PurchaseOrderLine(models.Model):
         computation.
         """
         self.ensure_one()
-        if self.price_policy == "package":
+        if self.price_policy == "package" and self.product_packaging_qty:
             return self.env["account.tax"]._prepare_base_line_for_taxes_computation(
                 self,
                 tax_ids=self.taxes_id,
