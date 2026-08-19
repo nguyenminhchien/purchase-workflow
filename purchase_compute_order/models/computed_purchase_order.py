@@ -127,24 +127,13 @@ class ComputedPurchaseOrder(models.Model):
         """ least the weight specified""",
     )
     line_order_field = fields.Selection(
-        [
-            ("product_code", "Supplier Product Code"),
-            ("product_name", "Supplier Product Name"),
-            ("product_sequence", "Product Sequence"),
-        ],
         string="Lines Order",
         help="The field used to sort the CPO lines",
-        default="product_code",
-        required=True,
+        related="partner_id.cpo_line_order_field",
     )
     line_order = fields.Selection(
-        [
-            ("asc", "Ascending"),
-            ("desc", "Descending"),
-        ],
         string="Lines Order Direction",
-        default="asc",
-        required=True,
+        related="partner_id.cpo_line_order",
     )
     valid_psi = fields.Selection(
         _VALID_PSI,
@@ -187,7 +176,6 @@ class ComputedPurchaseOrder(models.Model):
             field_onchange,
         )
 
-    # Fields Function section
     @api.depends("line_ids")
     def _compute_stock_line_ids(self):
         for spo in self:
@@ -234,8 +222,6 @@ class ComputedPurchaseOrder(models.Model):
         if self.partner_id:
             self.purchase_target = self.partner_id.purchase_target
             self.target_type = self.partner_id.target_type
-            self.line_order_field = self.partner_id.cpo_line_order_field
-            self.line_order = self.partner_id.cpo_line_order
         self.line_ids = [(2, x.id, False) for x in self.line_ids]
 
     # Overload Section
@@ -251,18 +237,16 @@ class ComputedPurchaseOrder(models.Model):
 
     def write(self, vals):
         cpo_id = super().write(vals)
-        if self.update_sorting(vals):
+        if self.update_sorting(vals) or "partner_id" in vals:
             self.sort_lines()
         return cpo_id
 
     def sort_lines(self):
         for rec in self:
-            # sort based on field
             lines = rec.line_ids.sorted(
                 key=lambda line: getattr(line, rec.line_order_field) or "",
                 reverse=(rec.line_order == "desc"),
             )
-            # store new sequence
             for i, line in enumerate(lines):
                 line.sequence = i
 
