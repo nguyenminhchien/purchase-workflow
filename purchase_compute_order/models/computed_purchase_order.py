@@ -26,6 +26,7 @@
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+from odoo.tools import float_round
 
 
 class ComputedPurchaseOrder(models.Model):
@@ -341,8 +342,7 @@ class ComputedPurchaseOrder(models.Model):
         product_price = cpo_line.product_price
         package_qty = cpo_line.package_qty
 
-        # Find the best psi for the quantity: best price with qty
-        psi = cpo_line.with_context(bypass_packaging=True)._find_psi(qty=quantity)
+        psi = cpo_line.psi_id
         if psi:
             product_price = cpo_line._get_psi_price(psi)
             package_qty = psi.package_qty
@@ -429,6 +429,13 @@ class ComputedPurchaseOrder(models.Model):
 
             for line in cpo.line_ids:
                 quantity, product_price, psi, package_qty = qty_tmp[line.id]
+                if package_qty:
+                    # Package quantity must always be an integer: round it
+                    # down so the ordered quantity matches whole packages.
+                    nb_package = float_round(
+                        quantity / package_qty, rounding_method="DOWN"
+                    )
+                    quantity = nb_package * package_qty
                 cpo._update_compute_purchase_qty(
                     line, quantity, product_price, psi, package_qty
                 )
