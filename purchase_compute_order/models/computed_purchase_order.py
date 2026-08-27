@@ -242,10 +242,18 @@ class ComputedPurchaseOrder(models.Model):
             self.sort_lines()
         return cpo_id
 
+    def _get_line_sort_key(self, psi, product):
+        self.ensure_one()
+        return {
+            "product_code": psi.product_code or "",
+            "product_name": psi.product_name or "",
+            "product_sequence": product.sequence or 0,
+        }[self.line_order_field or "product_code"]
+
     def sort_lines(self):
         for rec in self:
             lines = rec.line_ids.sorted(
-                key=lambda line: getattr(line, rec.line_order_field) or "",
+                key=lambda line: rec._get_line_sort_key(line.psi_id, line.product_id),
                 reverse=(rec.line_order == "desc"),
             )
             for i, line in enumerate(lines):
@@ -471,7 +479,7 @@ class ComputedPurchaseOrder(models.Model):
     def compute_active_product_stock(self):
         psi_obj = self.env["product.supplierinfo"]
         for cpo in self:
-            cpol_list = []
+            pairs = []
             # TMP delete all rows,
             # TODO : depends on further request to avoid user data to be lost
             cpo.line_ids.unlink()
@@ -483,9 +491,20 @@ class ComputedPurchaseOrder(models.Model):
                 ).product_variant_ids:
                     valid_psi = pp._valid_psi(cpo.valid_psi)
                     if valid_psi and psi in valid_psi[0]:
-                        cpol_list.append((0, 0, cpo.parse_cpol_vals(psi, pp)))
+                        pairs.append((psi, pp))
+
+            # Sort before creating the lines so the created order (and the
+            # sequence we set below) already matches the vendor's preference.
+            pairs.sort(
+                key=lambda p: cpo._get_line_sort_key(*p),
+                reverse=(cpo.line_order == "desc"),
+            )
+
             # update line_ids
-            cpo.line_ids = cpol_list
+            cpo.line_ids = [
+                (0, 0, dict(cpo.parse_cpol_vals(psi, pp), sequence=i))
+                for i, (psi, pp) in enumerate(pairs)
+            ]
 
     def _get_field_from_target_type(self):
         self.ensure_one()
