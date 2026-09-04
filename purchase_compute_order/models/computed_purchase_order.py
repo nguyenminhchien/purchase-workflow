@@ -441,7 +441,9 @@ class ComputedPurchaseOrder(models.Model):
                     # Package quantity must always be an integer: round it
                     # down so the ordered quantity matches whole packages.
                     nb_package = float_round(
-                        quantity / package_qty, rounding_method="DOWN"
+                        quantity / package_qty,
+                        precision_digits=0,
+                        rounding_method="DOWN",
                     )
                     quantity = nb_package * package_qty
                 cpo._update_compute_purchase_qty(
