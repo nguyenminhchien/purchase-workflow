@@ -62,12 +62,12 @@ class ProductSupplierinfo(models.Model):
                 )
 
     def _convert_qty(self, quantity):
-        """
-        Set the qty by max_nb_of_package
-        """
         quantity = super()._convert_qty(quantity)
-        if self.package_qty and self.max_nb_of_package > 0:
-            max_quantity = self.max_nb_of_package * self.package_qty
-            if quantity > max_quantity:
-                quantity = max_quantity
+        if self.package_qty:
+            nb_of_package = quantity / self.package_qty
+            if self.min_nb_of_package > 0 and nb_of_package < self.min_nb_of_package:
+                quantity = self.min_nb_of_package * self.package_qty
+            elif self.max_nb_of_package > 0 and nb_of_package > self.max_nb_of_package:
+                quantity = self.max_nb_of_package * self.package_qty
+
         return quantity
